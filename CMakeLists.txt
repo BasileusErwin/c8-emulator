@@ -14,3 +14,19 @@ file(GLOB SOURCES
 )
 
 add_executable(c8 ${SOURCES})
+
+# Debug
+
+set(CMAKE_BUILD_TYPE Debug)
+
+add_executable(c8d ${SOURCES})
+
+target_compile_options(c8d PRIVATE -g)
+
+add_custom_target(clean-all
+  COMMAND ${CMAKE_COMMAND} -P clean-all.cmake
+)
+
+file(REMOVE_RECURSE
+  ${CMAKE_BINARY_DIR}/*
+)
