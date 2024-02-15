@@ -23,7 +23,8 @@ static opcode_table operation[16] = {
   &operation_0, &operation_1, &operation_2, &operation_3,
   &operation_4, &operation_5, &operation_6, &operation_7,
   &operation_8, &operation_9, &operation_A, &operation_B,
-  &operation_C, &operation_D, &operation_E, &operation_F};
+  &operation_C, &operation_D, &operation_E, &operation_F,
+};
 
 void execute(Machine *machine) {
   int mustExit = 0;

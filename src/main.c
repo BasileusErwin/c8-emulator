@@ -1,6 +1,3 @@
-/**
- * Chip-8 Emulator
- * */
 #include <cpu.h>
 #include <machine.h>
 #include <rom.h>
