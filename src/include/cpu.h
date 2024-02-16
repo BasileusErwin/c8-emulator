@@ -64,6 +64,13 @@
 #define OPCODE_N(opcode) (opcode & OPCODE_N_MASK)
 #define OPCODE(opcode) (opcode >> 12)
 
+#define MASK_FFF(n) n & 0xFFF
+
+/**
+ * Incrementa el contador de programa en 2
+ * */
+#define INCREMENT_PC(machine) machine->pc = MASK_FFF(machine->pc + 2)
+
 void execute(Machine *machine);
 
 #endif

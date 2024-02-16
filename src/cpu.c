@@ -1,4 +1,5 @@
 #include <cpu.h>
+#include <stdio.h>
 
 typedef void (*opcode_table)(Machine *machine, uint16_t opcode);
 
@@ -33,10 +34,7 @@ void execute(Machine *machine) {
     uint16_t opcode =
         machine->memory[machine->pc] << 8 | machine->memory[machine->pc + 1];
 
-    if ((machine->pc += 2) == MEM_SIZE) {
-      mustExit = 1;
-      machine->pc = 0;
-    }
+    INCREMENT_PC(machine);
 
     uint8_t op = OPCODE(opcode);
 
@@ -57,7 +55,7 @@ void operation_0(Machine *machine, uint16_t opcode) {
 void operation_1(Machine *machine, uint16_t opcode) {
   uint16_t nnn = OPCODE_NNN(opcode);
 
-  // TODO: JP addr: Jump to location nnn
+  machine->pc = nnn;
   printf("JP addr: %d\n", nnn);
 }
 
@@ -67,44 +65,85 @@ void operation_2(Machine *machine, uint16_t opcode) {
   printf("CALL addr: %d\n", nnn);
 }
 
+/**
+ * 3xkk - SE Vx, byte
+ * SE Vx, kk - Skip next instruction if Vx = kk
+ * */
 void operation_3(Machine *machine, uint16_t opcode) {
   uint8_t kk = OPCODE_KK(opcode);
   uint8_t x = OPCODE_X(opcode);
-  // TODO: SE Vx, byte: Skip next instruction if Vx = kk
+
+  if (machine->v[x] == kk) {
+    INCREMENT_PC(machine);
+  }
   printf("SE Vx, byte: %d, %d\n", x, kk);
 }
 
+/**
+ * 4xkk - SNE Vx, byte
+ * SNE Vx, kk - Skip next instruction if Vx != kk
+ * */
 void operation_4(Machine *machine, uint16_t opcode) {
   uint8_t kk = OPCODE_KK(opcode);
   uint8_t x = OPCODE_X(opcode);
 
-  // TODO: SNE Vx, byte: Skip next instruction if Vx != kk
+  if (machine->v[x] != kk) {
+    INCREMENT_PC(machine);
+  }
   printf("SNE Vx, byte: %d, %d\n", x, kk);
 }
 
+/**
+ * 5xy0 - SE Vx, Vy
+ * SE Vx, Vy - Skip next instruction if Vx = Vy
+ * */
 void operation_5(Machine *machine, uint16_t opcode) {
   uint8_t x = OPCODE_X(opcode);
   uint8_t y = OPCODE_Y(opcode);
 
-  // TODO: SE Vx, Vy: Skip next instruction if Vx = Vy
+  if (machine->v[x] == machine->v[y]) {
+    INCREMENT_PC(machine);
+  }
   printf("SE Vx, Vy: %d, %d\n", x, y);
 }
 
+/**
+ * 6xkk - LD Vx, byte
+ * LD Vx, kk - Set Vx = kk
+ *
+ * Puts the value kk into register Vx. Constant value or register value.
+ * */
 void operation_6(Machine *machine, uint16_t opcode) {
   uint8_t kk = OPCODE_KK(opcode);
   uint8_t x = OPCODE_X(opcode);
 
-  // TODO: LD Vx, byte: Set Vx = kk
+  machine->v[x] = kk;
   printf("LD Vx, byte: %d, %d\n", x, kk);
 }
 
+/**
+ * 7xkk - ADD Vx, byte
+ * ADD Vx, kk - Add Vx = (Vx + kk) & 0xFF (8 bits)
+ * */
 void operation_7(Machine *machine, uint16_t opcode) {
   uint8_t kk = OPCODE_KK(opcode);
   uint8_t x = OPCODE_X(opcode);
-  // TODO: ADD Vx, byte: Set Vx = Vx + kk
+
+  machine->v[x] = (machine->v[x] + kk) & 0xFF;
   printf("ADD Vx, byte: %d, %d\n", x, kk);
 }
 
+/**
+ * 8xy0 - LD Vx, Vy - Set Vx = Vy
+ * 8xy1 - OR Vx, Vy - Set Vx = Vx OR Vy
+ * 8xy2 - AND Vx, Vy - Set Vx = Vx AND Vy
+ * 8xy3 - XOR Vx, Vy - Set Vx = Vx XOR Vy
+ * 8xy4 - ADD Vx, Vy - Set Vx = Vx + Vy, set VF if Vx + Vy > 255
+ * 8xy5 - SUB Vx, Vy - Set Vx = Vx - Vy, set VF if Vx > Vy
+ * 8xy6 - SHR Vx {, Vy} - Set Vx = Vx SHR 1 (divide by 2), set VF if Vx is odd
+ * 8xy7 - SUBN Vx, Vy - Set Vx = Vy - Vx, set VF if Vy > Vx
+ * 8xyE - SHL Vx {, Vy} - Set Vx = Vx SHL 1, set VF if Vx > 127
+ * */
 void operation_8(Machine *machine, uint16_t opcode) {
   uint8_t x = OPCODE_X(opcode);
   uint8_t y = OPCODE_Y(opcode);
@@ -112,61 +151,85 @@ void operation_8(Machine *machine, uint16_t opcode) {
 
   switch (n) {
   case 0x0:
+    machine->v[x] = machine->v[y];
+    printf("LD Vx, Vy: %d, %d\n", x, y);
     break;
   case 0x1:
-    // TODO: OR Vx, Vy: Set Vx = Vx OR Vy
+    machine->v[x] = machine->v[x] | machine->v[y];
     printf("OR Vx, Vy: %d, %d\n", x, y);
     break;
   case 0x2:
-    // TODO: AND Vx, Vy: Set Vx = Vx AND Vy
+    machine->v[x] = machine->v[x] & machine->v[y];
     printf("AND Vx, Vy: %d, %d\n", x, y);
     break;
   case 0x3:
-    // TODO: XOR Vx, Vy: Set Vx = Vx XOR Vy
+    machine->v[x] = machine->v[x] ^ machine->v[y];
     printf("XOR Vx, Vy: %d, %d\n", x, y);
     break;
   case 0x4:
-    // TODO: ADD Vx, Vy: Set Vx = Vx + Vy, set VF = carry
+    machine->v[0xF] = machine->v[x] > (machine->v[x] + machine->v[y]);
+    machine->v[x] += machine->v[y];
     printf("ADD Vx, Vy: %d, %d\n", x, y);
     break;
   case 0x5:
-    // TODO: SUB Vx, Vy: Set Vx = Vx - Vy, set VF = NOT borrow
+    machine->v[0xF] = machine->v[x] > machine->v[y];
+    machine->v[x] -= machine->v[y];
     printf("SUB Vx, Vy: %d, %d\n", x, y);
     break;
   case 0x6:
-    // TODO: SHR Vx {, Vy}: Set Vx = Vx SHR 1
+    machine->v[0xF] = machine->v[x] & 1;
+    machine->v[x] >>= machine->v[x];
     printf("SHR Vx: %d\n", x);
     break;
   case 0x7:
-    // TODO: SUBN Vx, Vy: Set Vx = Vy - Vx, set VF = NOT borrow
+    machine->v[0xF] = machine->v[y] > machine->v[x];
+    machine->v[x] = machine->v[y] - machine->v[x];
     printf("SUBN Vx, Vy: %d, %d\n", x, y);
     break;
   case 0xE:
-    // TODO: SHL Vx {, Vy}: Set Vx = Vx SHL 1
+    machine->v[0xF] = machine->v[x] >> 0x7;
+    machine->v[x] <<= machine->v[x];
     printf("SHL Vx: %d\n", x);
     break;
   }
 }
 
+/**
+ * 9xy0 - SNE Vx, Vy - Skip next instruction if Vx != Vy
+ * */
 void operation_9(Machine *machine, uint16_t opcode) {
   uint8_t x = OPCODE_X(opcode);
   uint8_t y = OPCODE_Y(opcode);
-  // TODO: SNE Vx, Vy: Skip next instruction if Vx != Vy
+
+  if (machine->v[x] != machine->v[y]) {
+    INCREMENT_PC(machine);
+  }
   printf("SNE Vx, Vy: %d, %d\n", x, y);
 }
 
+/**
+ * Annn - LD I, addr - Set I = nnn
+ * */
 void operation_A(Machine *machine, uint16_t opcode) {
   uint16_t nnn = OPCODE_NNN(opcode);
-  // TODO: LD I, addr: Set I = nnn
+
+  machine->i = nnn;
   printf("LD I, addr: %d\n", nnn);
 }
 
+/**
+ * Bnnn - JP V0, addr - Jump to location nnn + V0
+ * */
 void operation_B(Machine *machine, uint16_t opcode) {
   uint16_t nnn = OPCODE_NNN(opcode);
-  // TODO: JP V0, addr: Jump to location nnn + V0
+
+  machine->pc = nnn + machine->v[0];
   printf("JP V0, addr: %d\n", nnn);
 }
 
+/**
+ * Cxkk - RND Vx, byte - Set Vx = random byte AND kk
+ * */
 void operation_C(Machine *machine, uint16_t opcode) {
   uint8_t kk = OPCODE_KK(opcode);
   uint8_t x = OPCODE_X(opcode);
@@ -174,6 +237,9 @@ void operation_C(Machine *machine, uint16_t opcode) {
   printf("RND Vx, byte: %d, %d\n", x, kk);
 }
 
+/**
+ * Dxyn - DRW Vx, Vy, nibble - Display n-byte sprite starting at memory
+ * */
 void operation_D(Machine *machine, uint16_t opcode) {
   uint8_t x = OPCODE_X(opcode);
   uint8_t y = OPCODE_Y(opcode);
@@ -199,13 +265,28 @@ void operation_E(Machine *machine, uint16_t opcode) {
   }
 }
 
+/**
+ *
+ * Fx07 - LD Vx, DT - Set Vx = delay timer value
+ * Fx0A - LD Vx, K - Wait for a key press, store the value of the key in Vx
+ * Fx15 - LD DT, Vx - Set delay timer = Vx
+ * Fx18 - LD ST, Vx - Set sound timer = Vx
+ * Fx1E - ADD I, Vx - Set I = I + Vx
+ * Fx29 - LD F, Vx - Set I = location of sprite for digit Vx
+ * Fx33 - LD B, Vx - Store BCD representation of Vx in memory locations I,
+ * Fx55 - LD [I], Vx: Store registers V0 through Vx in memory starting at
+ *  location I I is set to I + X + 1 after operation
+ * Fx65 - LD Vx, [I]: Read registers V0 through Vx from memory starting
+ *  at location I
+ *
+ * */
 void operation_F(Machine *machine, uint16_t opcode) {
   uint8_t kk = OPCODE_KK(opcode);
   uint8_t x = OPCODE_X(opcode);
 
   switch (kk) {
   case 0x07:
-    // TODO: LD Vx, DT: Set Vx = delay timer value
+    machine->v[x] = machine->delayTimer;
     printf("LD Vx, DT: %d\n", x);
     break;
   case 0x0A:
@@ -214,15 +295,15 @@ void operation_F(Machine *machine, uint16_t opcode) {
     printf("LD Vx, K: %d\n", x);
     break;
   case 0x15:
-    // TODO: LD DT, Vx: Set delay timer = Vx
+    machine->delayTimer = machine->v[x];
     printf("LD DT, Vx: %d\n", x);
     break;
   case 0x18:
-    // TODO: LD ST, Vx: Set sound timer = Vx
+    machine->soundTimer = machine->v[x];
     printf("LD ST, Vx: %d\n", x);
     break;
   case 0x1E:
-    // TODO: ADD I, Vx: Set I = I + Vx
+    machine->i += machine->v[x];
     printf("ADD I, Vx: %d\n", x);
     break;
   case 0x29:
