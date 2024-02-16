@@ -59,8 +59,8 @@
 
 #define OPCODE_NNN(opcode) (opcode & OPCODE_NNN_MASK)
 #define OPCODE_KK(opcode) (opcode & OPCODE_KK_MASK)
-#define OPCODE_X(opcode) ((opcode & OPCODE_X_MASK) >> 8)
-#define OPCODE_Y(opcode) ((opcode & OPCODE_Y_MASK) >> 4)
+#define OPCODE_X(opcode) ((opcode >> 8) & OPCODE_X_MASK)
+#define OPCODE_Y(opcode) ((opcode >> 4) & OPCODE_Y_MASK)
 #define OPCODE_N(opcode) (opcode & OPCODE_N_MASK)
 #define OPCODE(opcode) (opcode >> 12)
 

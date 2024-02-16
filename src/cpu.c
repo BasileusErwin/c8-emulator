@@ -1,3 +1,4 @@
+#include "machine.h"
 #include "window.h"
 #include <cpu.h>
 #include <stdio.h>
@@ -43,8 +44,10 @@ static opcode_table operation[16] = {
 };
 
 void execute(Machine *machine) {
+  srand(time(NULL));
   int mustExit = 0;
-  int lastTime = 0;
+  int lastTicks = 0;
+  int cycles = 0;
 
   SDL_Window *window = init_window();
 
@@ -69,23 +72,32 @@ void execute(Machine *machine) {
     exit(1);
   }
 
+  SDL_Event event;
   while (!mustExit) {
-    SDL_Event ev;
-
-    while (SDL_PollEvent(&ev)) {
-      if (ev.type == SDL_QUIT) {
+    while (SDL_PollEvent(&event)) {
+      if (event.type == SDL_QUIT) {
         mustExit = 1;
       }
     }
 
-    if (SDL_GetTicks() - lastTime > (1000 / 60)) {
+    if (SDL_GetTicks() - cycles > 1) {
       uint16_t opcode =
           machine->memory[machine->pc] << 8 | machine->memory[machine->pc + 1];
       INCREMENT_PC(machine);
       uint8_t op = OPCODE(opcode);
       operation[op](machine, opcode);
 
-      lastTime = SDL_GetTicks();
+      cycles = SDL_GetTicks();
+    }
+
+    if (SDL_GetTicks() - lastTicks > (1000 / 60)) {
+      if (machine->delayTimer) {
+        machine->delayTimer--;
+      }
+
+      if (machine->soundTimer) {
+        machine->soundTimer--;
+      }
 
       SDL_LockTexture(texture, NULL, &surface->pixels, &surface->pitch);
       expansion(machine->screen, (uint32_t *) surface->pixels);
@@ -94,6 +106,8 @@ void execute(Machine *machine) {
       SDL_RenderClear(render);
       SDL_RenderCopy(render, texture, NULL, NULL);
       SDL_RenderPresent(render);
+
+      lastTicks = SDL_GetTicks();
     }
   }
 
@@ -107,7 +121,7 @@ void execute(Machine *machine) {
  * */
 void operation_0(Machine *machine, uint16_t opcode) {
   if (opcode == 0x00E0) {
-    memset(machine->screen, 0x00, sizeof(machine->screen));
+    memset(machine->screen, 0x00, SCREEN_SIZE);
     printf("CLS\n");
   } else if (opcode == 0x00EE) {
     if (machine->sp > 0) {
@@ -151,6 +165,7 @@ void operation_3(Machine *machine, uint16_t opcode) {
   if (machine->v[x] == kk) {
     INCREMENT_PC(machine);
   }
+
   printf("SE Vx, byte: %d, %d\n", x, kk);
 }
 
@@ -326,14 +341,17 @@ void operation_D(Machine *machine, uint16_t opcode) {
   uint8_t y = OPCODE_Y(opcode);
   uint8_t n = OPCODE_N(opcode);
 
-  for (int i = 0; i < n; i++) {
-    uint8_t sprite = machine->memory[machine->i + i];
-    for (int j = 0; j < 7; j++) {
-      int px = (machine->v[x] + j) & (SCREEN_WIDTH - 1);
-      int py = (machine->v[y] + i) & (SCREEN_HEIGHT - 1);
+  machine->v[0xF] = 0;
+  for (int j = 0; j < n; j++) {
+    uint8_t sprite = machine->memory[machine->i + j];
+    for (int i = 0; i < 8; i++) {
+      int px = (machine->v[x] + i) & (SCREEN_WIDTH - 1);
+      int py = (machine->v[y] + j) & (SCREEN_HEIGHT - 1);
+      int position = px + (py * SCREEN_WIDTH);
+      int pixel = (sprite & (1 << (7 - i))) != 0;
 
-      machine->screen[px + (py * SCREEN_WIDTH)] =
-          (sprite & (1 << (7 - j))) != 0;
+      machine->v[0xF] |= (machine->screen[position] & pixel);
+      machine->screen[position] ^= pixel;
     }
   }
 
@@ -395,22 +413,28 @@ void operation_F(Machine *machine, uint16_t opcode) {
     printf("ADD I, Vx: %d\n", x);
     break;
   case 0x29:
-    // TODO: LD F, Vx: Set I = location of sprite for digit Vx
+    machine->i = ((machine->v[x] & 0xF) * 5) + 0x50;
     printf("LD F, Vx: %d\n", x);
     break;
   case 0x33:
-    // TODO: LD B, Vx: Store BCD representation of Vx in memory locations I,
-    // I+1, and I+2
+    machine->memory[machine->i + 2] = machine->v[x] % 10;
+    machine->memory[machine->i + 1] = (machine->v[x] / 10) % 10;
+    machine->memory[machine->i] = machine->v[x] / 100;
+
     printf("LD B, Vx: %d\n", x);
     break;
   case 0x55:
-    // TODO: LD [I], Vx: Store registers V0 through Vx in memory starting at
-    // location I I is set to I + X + 1 after operation
+    for (int reg = 0; reg <= x; reg++) {
+      machine->memory[machine->i + reg] = machine->v[reg];
+    }
+
     printf("LD [I], Vx: %d\n", x);
     break;
   case 0x65:
-    // TODO: LD Vx, [I]: Read registers V0 through Vx from memory starting
-    // at location I
+    for (int reg = 0; reg <= x; reg++) {
+      machine->v[reg] = machine->memory[machine->i + reg];
+    }
+
     printf("LD Vx, [I]: %d\n", x);
     break;
   }

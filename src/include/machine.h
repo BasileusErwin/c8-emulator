@@ -37,6 +37,6 @@ typedef struct machine_t {
 } Machine;
 
 void init_machine(Machine *machine);
-void expansion(char* from, uint32_t *to);
+void expansion(char *from, uint32_t *to);
 
 #endif
