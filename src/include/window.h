@@ -6,7 +6,8 @@
 
 SDL_Window *init_window();
 SDL_Renderer *init_render(SDL_Window *window);
-SDL_Texture *init_texture(SDL_Renderer *render, uint32_t *pixels, int pitch);
+SDL_Surface *init_surface();
+SDL_Texture *init_texture(SDL_Renderer *render, SDL_Surface* surface);
 void destroy_window(
     SDL_Window *window, SDL_Renderer *render, SDL_Texture *texture
 );

@@ -6,6 +6,10 @@
 
 #define MEM_SIZE 4096 // 4K memory in bytes
 
+#define SCREEN_WIDTH 64
+#define SCREEN_HEIGHT 32
+#define SCREEN_SIZE SCREEN_WIDTH *SCREEN_HEIGHT
+
 /**
  * Chip-8 Machine
  *
@@ -29,8 +33,10 @@ typedef struct machine_t {
   uint8_t v[16];                  // Vx registers
   uint16_t i;                     // I register
   uint8_t delayTimer, soundTimer; // Delay timer
+  char screen[SCREEN_SIZE];       // 64x32 screen
 } Machine;
 
 void init_machine(Machine *machine);
+void expansion(char* from, uint32_t *to);
 
 #endif

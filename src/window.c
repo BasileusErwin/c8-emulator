@@ -21,7 +21,7 @@ SDL_Renderer *init_render(SDL_Window *window) {
   );
 }
 
-SDL_Texture *init_texture(SDL_Renderer *render, uint32_t *pixels, int pitch) {
+SDL_Texture *init_texture(SDL_Renderer *render, SDL_Surface *surface) {
   SDL_Texture *texture = SDL_CreateTexture(
       render,
       SDL_PIXELFORMAT_RGBA8888,
@@ -29,10 +29,27 @@ SDL_Texture *init_texture(SDL_Renderer *render, uint32_t *pixels, int pitch) {
       64,
       32
   );
-  SDL_LockTexture(texture, NULL, (void **) &pixels, &pitch);
-  memset(pixels, 0xFF, 32 * pitch);
+
+  SDL_LockTexture(texture, NULL, &surface->pixels, &surface->pitch);
+
+  memset(surface->pixels, 0xFF, 32 * surface->pitch);
+
   SDL_UnlockTexture(texture);
+
   return texture;
+}
+
+SDL_Surface *init_surface() {
+  return SDL_CreateRGBSurface(
+      0,
+      64,
+      32,
+      32,
+      0x00FF0000,
+      0x0000FF00,
+      0x000000FF,
+      0xFF000000
+  );
 }
 
 void destroy_window(

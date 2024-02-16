@@ -16,10 +16,17 @@ void init_machine(Machine *machine) {
   memset(machine->memory, 0x00, sizeof(machine->memory));
   memset(machine->stack, 0x00, sizeof(machine->stack));
   memset(machine->v, 0x00, sizeof(machine->stack));
+  memset(machine->screen, 0x00, sizeof(machine->screen));
 
   machine->pc = 0x200;
   machine->sp = 0;
   machine->i = 0;
   machine->delayTimer = 0;
   machine->soundTimer = 0;
+}
+
+void expansion(char *from, uint32_t *to) {
+  for (int i = 0; i < SCREEN_SIZE; i++) {
+    to[i] = (from[i]) ? -1 : 0;
+  }
 }

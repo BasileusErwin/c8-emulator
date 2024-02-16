@@ -1,6 +1,8 @@
 #include "window.h"
 #include <cpu.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 typedef void (*opcode_table)(Machine *machine, uint16_t opcode);
 
@@ -42,6 +44,8 @@ static opcode_table operation[16] = {
 
 void execute(Machine *machine) {
   int mustExit = 0;
+  int lastTime = 0;
+
   SDL_Window *window = init_window();
 
   if (window == NULL) {
@@ -56,9 +60,9 @@ void execute(Machine *machine) {
     exit(1);
   }
 
-  int pitch = 0;
-  uint32_t *pixels = NULL;
-  SDL_Texture *texture = init_texture(render, pixels, pitch);
+  SDL_Surface *surface = init_surface();
+
+  SDL_Texture *texture = init_texture(render, surface);
 
   if (texture == NULL) {
     printf("Error: Could not create texture\n");
@@ -66,36 +70,50 @@ void execute(Machine *machine) {
   }
 
   while (!mustExit) {
-    uint16_t opcode =
-        machine->memory[machine->pc] << 8 | machine->memory[machine->pc + 1];
-
-    INCREMENT_PC(machine);
-
-    uint8_t op = OPCODE(opcode);
-
     SDL_Event ev;
-    SDL_RenderClear(render);
-    SDL_RenderCopy(render, texture, NULL, NULL);
-    SDL_RenderPresent(render);
 
-    SDL_WaitEvent(&ev);
-
-    if (ev.type == SDL_QUIT) {
-      mustExit = 1;
+    while (SDL_PollEvent(&ev)) {
+      if (ev.type == SDL_QUIT) {
+        mustExit = 1;
+      }
     }
 
-    operation[op](machine, opcode);
+    if (SDL_GetTicks() - lastTime > (1000 / 60)) {
+      uint16_t opcode =
+          machine->memory[machine->pc] << 8 | machine->memory[machine->pc + 1];
+      INCREMENT_PC(machine);
+      uint8_t op = OPCODE(opcode);
+      operation[op](machine, opcode);
+
+      lastTime = SDL_GetTicks();
+
+      SDL_LockTexture(texture, NULL, &surface->pixels, &surface->pitch);
+      expansion(machine->screen, (uint32_t *) surface->pixels);
+      SDL_UnlockTexture(texture);
+
+      SDL_RenderClear(render);
+      SDL_RenderCopy(render, texture, NULL, NULL);
+      SDL_RenderPresent(render);
+    }
   }
 
   destroy_window(window, render, texture);
 }
 
+/**
+ *  00E0 - CLS - Clear the display
+ *  00EE - RET - Return from a subroutine, set the program counter to the
+ * address
+ * */
 void operation_0(Machine *machine, uint16_t opcode) {
   if (opcode == 0x00E0) {
-    // TODO: CLS: Clear the screen
+    memset(machine->screen, 0x00, sizeof(machine->screen));
     printf("CLS\n");
   } else if (opcode == 0x00EE) {
-    // TODO: RET: Return from a subroutine
+    if (machine->sp > 0) {
+      machine->pc = machine->stack[--machine->sp];
+    }
+
     printf("RET\n");
   }
 }
@@ -107,9 +125,18 @@ void operation_1(Machine *machine, uint16_t opcode) {
   printf("JP addr: %d\n", nnn);
 }
 
+/**
+ * 2nnn - CALL addr - Call subroutine at nnn
+ * */
 void operation_2(Machine *machine, uint16_t opcode) {
   uint16_t nnn = OPCODE_NNN(opcode);
-  // TODO: CALL addr: Call subroutine at nnn
+
+  if (machine->sp < 16) {
+    machine->stack[machine->sp++] = machine->pc;
+  }
+
+  machine->pc = nnn;
+
   printf("CALL addr: %d\n", nnn);
 }
 
@@ -138,6 +165,7 @@ void operation_4(Machine *machine, uint16_t opcode) {
   if (machine->v[x] != kk) {
     INCREMENT_PC(machine);
   }
+
   printf("SNE Vx, byte: %d, %d\n", x, kk);
 }
 
@@ -152,6 +180,7 @@ void operation_5(Machine *machine, uint16_t opcode) {
   if (machine->v[x] == machine->v[y]) {
     INCREMENT_PC(machine);
   }
+
   printf("SE Vx, Vy: %d, %d\n", x, y);
 }
 
@@ -281,20 +310,33 @@ void operation_B(Machine *machine, uint16_t opcode) {
 void operation_C(Machine *machine, uint16_t opcode) {
   uint8_t kk = OPCODE_KK(opcode);
   uint8_t x = OPCODE_X(opcode);
-  // TODO: RND Vx, byte: Set Vx = random byte AND kk
+
+  machine->v[x] = rand() & kk;
+
   printf("RND Vx, byte: %d, %d\n", x, kk);
 }
 
 /**
- * Dxyn - DRW Vx, Vy, nibble - Display n-byte sprite starting at memory
+ * Dxyn - DRW Vx, Vy, nibble - Display n-byte sprite starting at memory location
+ *  I at (Vx, Vy), set VF = collision
+ *
  * */
 void operation_D(Machine *machine, uint16_t opcode) {
   uint8_t x = OPCODE_X(opcode);
   uint8_t y = OPCODE_Y(opcode);
   uint8_t n = OPCODE_N(opcode);
 
-  // TODO: DRW Vx, Vy, nibble: Display n-byte sprite starting at memory
-  // location I at (Vx, Vy), set VF = collision
+  for (int i = 0; i < n; i++) {
+    uint8_t sprite = machine->memory[machine->i + i];
+    for (int j = 0; j < 7; j++) {
+      int px = (machine->v[x] + j) & (SCREEN_WIDTH - 1);
+      int py = (machine->v[y] + i) & (SCREEN_HEIGHT - 1);
+
+      machine->screen[px + (py * SCREEN_WIDTH)] =
+          (sprite & (1 << (7 - j))) != 0;
+    }
+  }
+
   printf("DRW Vx, Vy, nibble: %d, %d, %d\n", x, y, n);
 }
 
@@ -314,7 +356,6 @@ void operation_E(Machine *machine, uint16_t opcode) {
 }
 
 /**
- *
  * Fx07 - LD Vx, DT - Set Vx = delay timer value
  * Fx0A - LD Vx, K - Wait for a key press, store the value of the key in Vx
  * Fx15 - LD DT, Vx - Set delay timer = Vx
@@ -326,7 +367,6 @@ void operation_E(Machine *machine, uint16_t opcode) {
  *  location I I is set to I + X + 1 after operation
  * Fx65 - LD Vx, [I]: Read registers V0 through Vx from memory starting
  *  at location I
- *
  * */
 void operation_F(Machine *machine, uint16_t opcode) {
   uint8_t kk = OPCODE_KK(opcode);
