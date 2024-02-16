@@ -1,8 +1,6 @@
-#include "machine.h"
-#include "window.h"
+#include <machine.h>
+#include <window.h>
 #include <cpu.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
 
 typedef void (*opcode_table)(Machine *machine, uint16_t opcode);
@@ -81,8 +79,8 @@ void execute(Machine *machine) {
     }
 
     if (SDL_GetTicks() - cycles > 1) {
-      uint16_t opcode =
-          machine->memory[machine->pc] << 8 | machine->memory[machine->pc + 1];
+      uint16_t opcode = (machine->memory[machine->pc] << 8) |
+                        machine->memory[machine->pc + 1];
       INCREMENT_PC(machine);
       uint8_t op = OPCODE(opcode);
       operation[op](machine, opcode);
@@ -103,7 +101,7 @@ void execute(Machine *machine) {
       expansion(machine->screen, (uint32_t *) surface->pixels);
       SDL_UnlockTexture(texture);
 
-      SDL_RenderClear(render);
+      // SDL_RenderClear(render);
       SDL_RenderCopy(render, texture, NULL, NULL);
       SDL_RenderPresent(render);
 
@@ -121,7 +119,7 @@ void execute(Machine *machine) {
  * */
 void operation_0(Machine *machine, uint16_t opcode) {
   if (opcode == 0x00E0) {
-    memset(machine->screen, 0x00, SCREEN_SIZE);
+    memset(machine->screen, 0x0, SCREEN_SIZE);
     printf("CLS\n");
   } else if (opcode == 0x00EE) {
     if (machine->sp > 0) {
@@ -247,15 +245,15 @@ void operation_8(Machine *machine, uint16_t opcode) {
     printf("LD Vx, Vy: %d, %d\n", x, y);
     break;
   case 0x1:
-    machine->v[x] = machine->v[x] | machine->v[y];
+    machine->v[x] |= machine->v[y];
     printf("OR Vx, Vy: %d, %d\n", x, y);
     break;
   case 0x2:
-    machine->v[x] = machine->v[x] & machine->v[y];
+    machine->v[x] &= machine->v[y];
     printf("AND Vx, Vy: %d, %d\n", x, y);
     break;
   case 0x3:
-    machine->v[x] = machine->v[x] ^ machine->v[y];
+    machine->v[x] ^= machine->v[y];
     printf("XOR Vx, Vy: %d, %d\n", x, y);
     break;
   case 0x4:
@@ -269,8 +267,8 @@ void operation_8(Machine *machine, uint16_t opcode) {
     printf("SUB Vx, Vy: %d, %d\n", x, y);
     break;
   case 0x6:
-    machine->v[0xF] = machine->v[x] & 1;
-    machine->v[x] >>= machine->v[x];
+    machine->v[0xF] = (machine->v[x] & 1);
+    machine->v[x] >>= 1;
     printf("SHR Vx: %d\n", x);
     break;
   case 0x7:
@@ -280,7 +278,7 @@ void operation_8(Machine *machine, uint16_t opcode) {
     break;
   case 0xE:
     machine->v[0xF] = machine->v[x] >> 0x7;
-    machine->v[x] <<= machine->v[x];
+    machine->v[x] <<= 1;
     printf("SHL Vx: %d\n", x);
     break;
   }
@@ -347,7 +345,7 @@ void operation_D(Machine *machine, uint16_t opcode) {
     for (int i = 0; i < 8; i++) {
       int px = (machine->v[x] + i) & (SCREEN_WIDTH - 1);
       int py = (machine->v[y] + j) & (SCREEN_HEIGHT - 1);
-      int position = px + (py * SCREEN_WIDTH);
+      int position = (SCREEN_WIDTH * py) + px;
       int pixel = (sprite & (1 << (7 - i))) != 0;
 
       machine->v[0xF] |= (machine->screen[position] & pixel);
@@ -413,7 +411,7 @@ void operation_F(Machine *machine, uint16_t opcode) {
     printf("ADD I, Vx: %d\n", x);
     break;
   case 0x29:
-    machine->i = ((machine->v[x] & 0xF) * 5) + 0x50;
+    machine->i = 0x50 + (machine->v[x] & 0xF) * 5;
     printf("LD F, Vx: %d\n", x);
     break;
   case 0x33:

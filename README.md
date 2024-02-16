@@ -14,12 +14,12 @@ Simple Chip-8 emulator written in C
 - Clang
 
 ```bash
-    mkdir build
+mkdir build
 
-    cd build
+cd build
 
-    cmake ..
+cmake ..
 
-    make
+make
 ```
 

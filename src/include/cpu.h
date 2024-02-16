@@ -64,7 +64,7 @@
 #define OPCODE_N(opcode) (opcode & OPCODE_N_MASK)
 #define OPCODE(opcode) (opcode >> 12)
 
-#define MASK_FFF(n) n & 0xFFF
+#define MASK_FFF(n) (n) & 0xFFF
 
 /**
  * Incrementa el contador de programa en 2
