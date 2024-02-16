@@ -1,3 +1,5 @@
+#include "window.h"
+#include <SDL2/SDL_events.h>
 #include <cpu.h>
 #include <machine.h>
 #include <rom.h>

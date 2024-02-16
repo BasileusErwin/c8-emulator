@@ -1,3 +1,4 @@
+#include "window.h"
 #include <cpu.h>
 #include <stdio.h>
 
@@ -21,14 +22,48 @@ static void operation_E(Machine *machine, uint16_t opcode);
 static void operation_F(Machine *machine, uint16_t opcode);
 
 static opcode_table operation[16] = {
-  &operation_0, &operation_1, &operation_2, &operation_3,
-  &operation_4, &operation_5, &operation_6, &operation_7,
-  &operation_8, &operation_9, &operation_A, &operation_B,
-  &operation_C, &operation_D, &operation_E, &operation_F,
+  &operation_0,
+  &operation_1,
+  &operation_2,
+  &operation_3,
+  &operation_4,
+  &operation_5,
+  &operation_6,
+  &operation_7,
+  &operation_8,
+  &operation_9,
+  &operation_A,
+  &operation_B,
+  &operation_C,
+  &operation_D,
+  &operation_E,
+  &operation_F,
 };
 
 void execute(Machine *machine) {
   int mustExit = 0;
+  SDL_Window *window = init_window();
+
+  if (window == NULL) {
+    printf("Error: Could not create window\n");
+    exit(1);
+  }
+
+  SDL_Renderer *render = init_render(window);
+
+  if (render == NULL) {
+    printf("Error: Could not create renderer\n");
+    exit(1);
+  }
+
+  int pitch = 0;
+  uint32_t *pixels = NULL;
+  SDL_Texture *texture = init_texture(render, pixels, pitch);
+
+  if (texture == NULL) {
+    printf("Error: Could not create texture\n");
+    exit(1);
+  }
 
   while (!mustExit) {
     uint16_t opcode =
@@ -38,8 +73,21 @@ void execute(Machine *machine) {
 
     uint8_t op = OPCODE(opcode);
 
+    SDL_Event ev;
+    SDL_RenderClear(render);
+    SDL_RenderCopy(render, texture, NULL, NULL);
+    SDL_RenderPresent(render);
+
+    SDL_WaitEvent(&ev);
+
+    if (ev.type == SDL_QUIT) {
+      mustExit = 1;
+    }
+
     operation[op](machine, opcode);
   }
+
+  destroy_window(window, render, texture);
 }
 
 void operation_0(Machine *machine, uint16_t opcode) {
@@ -223,7 +271,7 @@ void operation_A(Machine *machine, uint16_t opcode) {
 void operation_B(Machine *machine, uint16_t opcode) {
   uint16_t nnn = OPCODE_NNN(opcode);
 
-  machine->pc = nnn + machine->v[0];
+  machine->pc = MASK_FFF(nnn + machine->v[0]);
   printf("JP V0, addr: %d\n", nnn);
 }
 
