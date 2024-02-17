@@ -71,6 +71,6 @@
  * */
 #define INCREMENT_PC(machine) machine->pc = MASK_FFF(machine->pc + 2)
 
-void execute(Machine *machine);
+void execute_instruction(Machine *machine);
 
 #endif

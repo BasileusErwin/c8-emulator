@@ -45,9 +45,3 @@ void init_machine(Machine *machine) {
   machine->soundTimer = 0;
   machine->waitKey = -1;
 }
-
-void expansion(char *from, uint32_t *to) {
-  for (int i = 0; i < SCREEN_SIZE; i++) {
-    to[i] = (from[i]) ? -1 : 0;
-  }
-}

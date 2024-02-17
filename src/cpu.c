@@ -1,8 +1,7 @@
 #include <cpu.h>
-#include <machine.h>
-#include <time.h>
-#include <window.h>
 #include <keyboard.h>
+#include <machine.h>
+#include <string.h>
 
 typedef void (*opcode_table)(Machine *machine, uint16_t opcode);
 
@@ -42,7 +41,7 @@ static opcode_table operation[16] = {
   &operation_F,
 };
 
-static void execute_instruction(Machine *machine) {
+void execute_instruction(Machine *machine) {
   uint16_t opcode =
       (machine->memory[machine->pc] << 8) | machine->memory[machine->pc + 1];
 
@@ -51,83 +50,6 @@ static void execute_instruction(Machine *machine) {
   uint8_t op = OPCODE(opcode);
 
   operation[op](machine, opcode);
-}
-
-void execute(Machine *machine) {
-  srand(time(NULL));
-  int mustExit = 0;
-  int lastTicks = 0;
-  int cycles = 0;
-
-  SDL_Window *window = init_window();
-
-  if (window == NULL) {
-    printf("Error: Could not create window\n");
-    exit(1);
-  }
-
-  SDL_Renderer *render = init_render(window);
-
-  if (render == NULL) {
-    printf("Error: Could not create renderer\n");
-    exit(1);
-  }
-
-  SDL_Surface *surface = init_surface();
-
-  SDL_Texture *texture = init_texture(render, surface);
-
-  if (texture == NULL) {
-    printf("Error: Could not create texture\n");
-    exit(1);
-  }
-
-  SDL_Event event;
-  while (!mustExit) {
-    while (SDL_PollEvent(&event)) {
-      if (event.type == SDL_QUIT) {
-        mustExit = 1;
-      }
-    }
-
-    if (SDL_GetTicks() - cycles > 1) {
-      if ((int) machine->waitKey != -1) {
-        for (int key = 0; key <= 0xF; key++) {
-          if (is_key_pressed(key)) {
-            machine->v[(int) machine->waitKey] = key;
-            machine->waitKey = -1;
-            break;
-          }
-        }
-      }
-
-      execute_instruction(machine);
-
-      cycles = SDL_GetTicks();
-    }
-
-    if (SDL_GetTicks() - lastTicks > (1000 / 30)) {
-      if (machine->delayTimer) {
-        machine->delayTimer--;
-      }
-
-      if (machine->soundTimer) {
-        machine->soundTimer--;
-      }
-
-      SDL_LockTexture(texture, NULL, &surface->pixels, &surface->pitch);
-      expansion(machine->screen, (uint32_t *) surface->pixels);
-      SDL_UnlockTexture(texture);
-
-      // SDL_RenderClear(render);
-      SDL_RenderCopy(render, texture, NULL, NULL);
-      SDL_RenderPresent(render);
-
-      lastTicks = SDL_GetTicks();
-    }
-  }
-
-  destroy_window(window, render, texture);
 }
 
 /**
