@@ -1,7 +1,7 @@
-#include <machine.h>
-#include <window.h>
 #include <cpu.h>
+#include <machine.h>
 #include <time.h>
+#include <window.h>
 
 typedef void (*opcode_table)(Machine *machine, uint16_t opcode);
 
@@ -41,6 +41,54 @@ static opcode_table operation[16] = {
   &operation_F,
 };
 
+/**
+ * Chip 8 has a hex based keypad (0x0 - 0xF)
+ *
+ * +---------+
+ * | 1 2 3 C |
+ * | 4 5 6 D |
+ * | 7 8 9 E |
+ * | A 0 B F |
+ * +---------+
+ *
+ * */
+char keys[] = {
+  SDL_SCANCODE_1, // 1
+  SDL_SCANCODE_2, // 2
+  SDL_SCANCODE_3, // 3
+  SDL_SCANCODE_4, // C
+  SDL_SCANCODE_Q, // 4
+  SDL_SCANCODE_W, // 5
+  SDL_SCANCODE_E, // 6
+  SDL_SCANCODE_R, // D
+  SDL_SCANCODE_A, // 7
+  SDL_SCANCODE_S, // 8
+  SDL_SCANCODE_D, // 9
+  SDL_SCANCODE_F, // E
+  SDL_SCANCODE_Z, // A
+  SDL_SCANCODE_X, // 0
+  SDL_SCANCODE_C, // B
+  SDL_SCANCODE_V, // F
+};
+
+static int is_key_pressed(char key) {
+  const uint8_t *sld_keys = SDL_GetKeyboardState(NULL);
+  uint8_t real_key = keys[(int) key];
+
+  return sld_keys[real_key];
+}
+
+static void execute_instruction(Machine *machine) {
+  uint16_t opcode =
+      (machine->memory[machine->pc] << 8) | machine->memory[machine->pc + 1];
+
+  INCREMENT_PC(machine);
+
+  uint8_t op = OPCODE(opcode);
+
+  operation[op](machine, opcode);
+}
+
 void execute(Machine *machine) {
   srand(time(NULL));
   int mustExit = 0;
@@ -78,17 +126,23 @@ void execute(Machine *machine) {
       }
     }
 
-    if (SDL_GetTicks() - cycles > 1) {
-      uint16_t opcode = (machine->memory[machine->pc] << 8) |
-                        machine->memory[machine->pc + 1];
-      INCREMENT_PC(machine);
-      uint8_t op = OPCODE(opcode);
-      operation[op](machine, opcode);
+    if (SDL_GetTicks() - cycles > 3) {
+      if ((int) machine->waitKey != -1) {
+        for (int key = 0; key <= 0xF; key++) {
+          if (is_key_pressed(key)) {
+            machine->v[(int) machine->waitKey] = key;
+            machine->waitKey = -1;
+            break;
+          }
+        }
+      }
+
+      execute_instruction(machine);
 
       cycles = SDL_GetTicks();
     }
 
-    if (SDL_GetTicks() - lastTicks > (1000 / 60)) {
+    if (SDL_GetTicks() - lastTicks > (1000 / 40)) {
       if (machine->delayTimer) {
         machine->delayTimer--;
       }
@@ -356,17 +410,25 @@ void operation_D(Machine *machine, uint16_t opcode) {
   printf("DRW Vx, Vy, nibble: %d, %d, %d\n", x, y, n);
 }
 
+/**
+ * Ex9E - SKP Vx - Skip next instruction if key with the value of Vx is pressed
+ * ExA1 - SKNP Vx - Skip next instruction if key with the value of Vx is not
+ * */
 void operation_E(Machine *machine, uint16_t opcode) {
   uint8_t x = OPCODE_X(opcode);
   uint8_t kk = OPCODE_KK(opcode);
 
   if (kk == 0x9E) {
-    // TODO: SKP Vx: Skip next instruction if key with the value of Vx is
-    // pressed
+    if (is_key_pressed(machine->v[x])) {
+      INCREMENT_PC(machine);
+    }
+
     printf("SKP Vx: %d\n", x);
   } else if (kk == 0xA1) {
-    // TODO: SKNP Vx: Skip next instruction if key with the value of Vx is
-    // not pressed
+    if (!is_key_pressed(machine->v[x])) {
+      INCREMENT_PC(machine);
+    }
+
     printf("SKNP Vx: %d\n", x);
   }
 }
@@ -394,8 +456,7 @@ void operation_F(Machine *machine, uint16_t opcode) {
     printf("LD Vx, DT: %d\n", x);
     break;
   case 0x0A:
-    // TODO: LD Vx, K: Wait for a key press, store the value of the key in
-    // Vx
+    machine->waitKey = x;
     printf("LD Vx, K: %d\n", x);
     break;
   case 0x15:

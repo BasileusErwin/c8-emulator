@@ -24,6 +24,11 @@
  *              - Stack pointer is used to point to the top of the stack
  * delayTimer - 8-bit delay timer
  * soundTimer - 8-bit sound timer
+ * screen     - 64x32 screen
+ *              - Each pixel is a byte
+ *              - 0x00 is off
+ *              - 0x01 is on
+ * waitKey   - Wait for a key press
  * */
 typedef struct machine_t {
   uint8_t memory[MEM_SIZE];       // 4k memory
@@ -34,6 +39,7 @@ typedef struct machine_t {
   uint16_t i;                     // I register
   uint8_t delayTimer, soundTimer; // Delay timer
   char screen[SCREEN_SIZE];       // 64x32 screen
+  char waitKey;                   // Wait for a key press
 } Machine;
 
 void init_machine(Machine *machine);

@@ -32,7 +32,6 @@ char hexcodes[] = {
  * */
 void init_machine(Machine *machine) {
   memset(machine, 0x00, sizeof(Machine));
-  // memset(machine->memory, 0x00, sizeof(machine->memory));
   memset(machine->stack, 0x00, sizeof(machine->stack));
   memset(machine->v, 0x00, sizeof(machine->stack));
   memset(machine->screen, 0x00, sizeof(machine->screen));
@@ -44,6 +43,7 @@ void init_machine(Machine *machine) {
   machine->i = 0;
   machine->delayTimer = 0;
   machine->soundTimer = 0;
+  machine->waitKey = -1;
 }
 
 void expansion(char *from, uint32_t *to) {
