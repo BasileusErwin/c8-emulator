@@ -6,7 +6,7 @@
  * @param machine - Machine
  * */
 void load_rom(Machine *machine, const char *path) {
-  FILE *rom = fopen(path, "r");
+  FILE *rom = fopen(path, "rb");
 
   if (rom == NULL) {
     printf("Error: Could not open ROM file\n");

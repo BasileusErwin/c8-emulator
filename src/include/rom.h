@@ -1,5 +1,5 @@
-#ifndef CHP8_ROM_H
-#define CHP8_ROM_H
+#ifndef CHP_8_ROM_H
+#define CHP_8_ROM_H
 
 #include <machine.h>
 #include <stdio.h>
