@@ -79,7 +79,7 @@ void execute(Machine *machine) {
       }
 
       if (machine->soundTimer) {
-        if (machine->soundTimer-- == 0) {
+        if (--machine->soundTimer == 0) {
           SDL_PauseAudioDevice(audioDevice, 1);
         } else {
           SDL_PauseAudioDevice(audioDevice, 0);
