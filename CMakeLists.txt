@@ -45,3 +45,5 @@ add_custom_target(clean-all
 file(REMOVE_RECURSE
   ${CMAKE_BINARY_DIR}/*
 )
+
+install(TARGETS c8 DESTINATION bin)
